@@ -32,7 +32,7 @@
 
     socket.on('matched', ({ roomId, partnerId }) => {
         console.log(`You are matched with user ${partnerId}`);
-        document.getElementById('heading').textContent = `You are matched with user ${partnerId}`;
+        document.getElementById('heading').textContent = `You are matched with a Stranger!!`;
         window.roomId = roomId; 
         console.log("Room ID set:", roomId); 
     });
