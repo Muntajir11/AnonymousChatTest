@@ -27,7 +27,7 @@
 
   <script>
     // const socket = io('https://anonymous-chat-server-cauu.onrender.com');
-    const socket = io('http://localhost:5000');
+    const socket = io('https://anonymous-chat-server-cauu.onrender.com');
     let roomId = null;
 
     socket.on('matched', ({ roomId, partnerId }) => {
