@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Socket.IO chat</title>
+  <style>
+    body { margin: 0; padding-bottom: 3rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    #form { background: rgba(0,0,0,0.15); padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; backdrop-filter: blur(10px); }
+    #input { border: none; padding: 0 1rem; flex-grow: 1; border-radius: 2rem; margin: 0.25rem; }
+    #input:focus { outline: none; }
+    #form > button { background: #333; border: none; padding: 0 1rem; margin: 0.25rem; border-radius: 3px; outline: none; color: #fff; }
+    #messages { list-style: none; margin: 0; padding: 0; }
+    #messages > li { padding: 0.5rem 1rem; }
+    #messages > li:nth-child(odd) { background: #efefef; }
+    #online-users { position: absolute; top: 1rem; right: 1rem; font-size: 1.2rem; color: #333; }
+  </style>
+</head>
+<body>
+  <h3 id="heading">Waiting for a match . . . !</h3>
+  <div id="online-users">Online Users: 0</div>
+  <ul id="messages"></ul>
+
+  <form id="form" action="">
+    <input id="input" autocomplete="off" />
+    <button id="send">Send</button>
+    <!-- This is now your “Find New” / (re)connect button -->
+    <button id="find">Find New</button>
+  </form>
+
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+  <script>
+    const SERVER = 'http://localhost:5000';
+
+    // 1) Presence socket: always connected, only for online count
+    const presenceSocket = io(`${SERVER}/presence`, {
+      transports: ['websocket']
+    });
+    presenceSocket.on('onlineUsers', count => {
+      document.getElementById('online-users').textContent = `Online Users: ${count}`;
+    });
+
+    // 2) Chat socket: autoConnect: false so we only enqueue on demand
+    const chatSocket = io(SERVER, {
+      autoConnect: false,
+      transports: ['websocket']
+    });
+
+    let currentRoom = null;
+
+    // When matched, update heading and store room
+    chatSocket.on('matched', ({ roomId, partnerId }) => {
+      currentRoom = roomId;
+      document.getElementById('heading').textContent = 'You are matched with a stranger!!';
+      console.log('Matched in room', roomId, 'with', partnerId);
+    });
+
+    // Incoming messages
+    chatSocket.on('chat message', ({ msg }) => {
+      const li = document.createElement('li');
+      li.textContent = `Stranger: ${msg}`;
+      document.getElementById('messages').appendChild(li);
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    // Partner disconnected
+    chatSocket.on('user disconnected', () => {
+      document.getElementById('heading').textContent = 'Stranger disconnected.';
+    });
+
+    // Send button
+    document.getElementById('send').addEventListener('click', e => {
+      e.preventDefault();
+      const msgInput = document.getElementById('input');
+      const msg = msgInput.value.trim();
+      if (!msg || !currentRoom) return;
+
+      // show locally
+      const li = document.createElement('li');
+      li.textContent = `You: ${msg}`;
+      document.getElementById('messages').appendChild(li);
+      window.scrollTo(0, document.body.scrollHeight);
+
+      chatSocket.emit('chat message', { roomId: currentRoom, msg });
+      msgInput.value = '';
+    });
+
+    // “Find New” button—either connect for the first time or reconnect
+    document.getElementById('find').addEventListener('click', e => {
+      e.preventDefault();
+
+      // if already connected, fully disconnect first
+      if (chatSocket.connected) {
+        chatSocket.disconnect();
+        currentRoom = null;
+        document.getElementById('heading').textContent = 'Waiting for a match . . . !';
+        document.getElementById('messages').innerHTML = '';
+      }
+
+      // then connect & enter queue
+      chatSocket.connect();
+    });
+  </script>
+</body>
+</html>
